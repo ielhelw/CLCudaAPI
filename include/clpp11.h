@@ -41,7 +41,6 @@
 #include <vector>    // std::vector
 #include <memory>    // std::shared_ptr
 #include <stdexcept> // std::runtime_error
-#include <numeric>   // std::accumulate
 
 // OpenCL
 #if defined(__APPLE__) || defined(__MACOSX)
@@ -284,7 +283,9 @@ class Program {
 
   // Compiles the device program and returns whether or not there where any warnings/errors
   BuildStatus Build(const Device &device, std::vector<std::string> &options) {
-    auto options_string = std::accumulate(options.begin(), options.end(), std::string{" "});
+    std::string options_string;
+    for (auto& opt : options) options_string += opt + " ";
+
     const cl_device_id dev = device();
     auto status = clBuildProgram(*program_, 1, &dev, options_string.c_str(), nullptr, nullptr);
     if (status == CL_BUILD_PROGRAM_FAILURE) {
