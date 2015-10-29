@@ -156,9 +156,11 @@ class Device {
   }
   std::string Vendor() const { return "NVIDIA Corporation"; }
   std::string Name() const {
-    auto result = std::string{};
+    std::string result;
     result.resize(kStringLength);
+    result[0] = '\0';
     CheckError(cuDeviceGetName(&result[0], result.size(), device_));
+    result[result.find('\0')] = '\0';
     return result;
   }
   std::string Type() const { return "GPU"; }
@@ -279,9 +281,11 @@ class Program {
   std::string GetBuildInfo(const Device &) const {
     auto bytes = size_t{0};
     CheckError(nvrtcGetProgramLogSize(*program_, &bytes));
-    auto result = std::string{};
+    std::string result;
     result.resize(bytes);
+    result[0] = '\0';
     CheckError(nvrtcGetProgramLog(*program_, &result[0]));
+    result[result.find('\0')] = '\0';
     return result;
   }
 
@@ -478,7 +482,7 @@ class Buffer {
   }
 
   // Accessors to the private data-members
-  const CUdeviceptr operator()() const { return *buffer_; }
+  CUdeviceptr operator()() const { return *buffer_; }
   CUdeviceptr& operator()() { return *buffer_; }
  private:
   std::shared_ptr<CUdeviceptr> buffer_;
@@ -527,14 +531,6 @@ class Kernel {
     SetArgumentsRecursive(0, args...);
   }
 
-  // Retrieves the amount of local memory used per work-group for this kernel. Note that this the
-  // shared memory in CUDA terminology.
-  size_t LocalMemUsage(const Device &device) const {
-    auto result = 0;
-    CheckError(cuFuncGetAttribute(&result, CU_FUNC_ATTRIBUTE_SHARED_SIZE_BYTES, kernel_));
-    return static_cast<size_t>(result);
-  }
-
   // Launches a kernel onto the specified queue
   void Launch(const Queue &queue, const std::vector<size_t> &global,
               const std::vector<size_t> &local, Event &event) {
@@ -557,12 +553,6 @@ class Kernel {
     CheckError(cuLaunchKernel(kernel_, grid[0], grid[1], grid[2], block[0], block[1], block[2],
                               0, queue(), pointers.data(), nullptr));
     CheckError(cuEventRecord(event.end(), queue()));
-  }
-
-  // As above, but with the default local workgroup size
-  // TODO: Implement this function
-  void Launch(const Queue &queue, const std::vector<size_t> &global, Event &event) {
-    Error("launching with a default workgroup size is not implemented for the CUDA back-end");
   }
 
   // Accessors to the private data-members
